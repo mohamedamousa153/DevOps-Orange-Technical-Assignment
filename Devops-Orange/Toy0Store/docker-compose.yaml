@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  backend:
+    build:
+      context: .
+    environment:
+      DB_URL: jdbc:mysql://db:3306/toystore
+      DB_USERNAME: root
+      DB_PASSWORD: 123
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+
+  db:
+    image: mariadb:10.1.32
+    environment:
+      MYSQL_ROOT_PASSWORD: 123
+      MYSQL_DATABASE: toystore
+    volumes:
+      - /home/mousa/task/Devops-Orange/Database/toystore-test.sql:/docker-entrypoint-initdb.d/toystore-test.sql
+    ports:
+      - "3306:3306"

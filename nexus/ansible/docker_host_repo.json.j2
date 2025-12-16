@@ -1,0 +1,19 @@
+{
+  "name": "{{ repo_name }}",
+  "online": true,
+  "storage": {
+    "blobStoreName": "default",
+    "strictContentTypeValidation": true
+  },
+  "cleanup": {
+    "policyNames": []
+  },
+  "format": "docker",
+  "type": "host",
+  "docker": {
+    "v1Enabled": false,
+    "forceBasicAuth": true,
+    "httpPort": {{ docker_access_port }},
+    "httpsPort": null
+  }
+}

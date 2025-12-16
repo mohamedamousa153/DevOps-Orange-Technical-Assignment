@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  gitlab-server:
+    image: gitlab/gitlab-ce:latest
+    container_name: gitlab-server
+    environment:
+      GITLAB_ROOT_EMAIL: "mohamed@mousa.com"
+      GITLAB_ROOT_PASSWORD: "123456789@asdfg"
+    volumes:
+      - ./config:/etc/gitlab
+      - ./logs:/var/log/gitlab
+      - ./data:/var/opt/gitlab
+    ports:
+      - "8082:80"
+    networks:
+      - appnet
+
+  gitlab-runner:
+    image: gitlab/gitlab-runner:latest
+    container_name: gitlab-runner
+    restart: always
+    depends_on:
+      - gitlab-server
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./runner-config:/etc/gitlab-runner
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    driver: bridge

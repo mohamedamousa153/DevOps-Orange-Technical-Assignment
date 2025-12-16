@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-info
+data:
+  db-name: {{ .Values.DB.databasename }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: toystore-init-sql
+data:
+  toystore-test.sql: |-
+{{ .Files.Get "./sql/toystore-test.sql" | indent 4 }}

@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: {{.Values.DB.name}}
+  name: {{.Values.DB.name}}
+spec:
+  replicas: {{.Values.DB.replicaCount}}
+  selector:
+    matchLabels:
+      app: {{.Values.DB.name}}
+  serviceName: {{.Values.DB.name}}-headless
+  template:
+    metadata:
+      labels:
+        app: {{.Values.DB.name}}
+    spec:
+      containers:
+      - image: {{.Values.DB.image.name}}:{{.Values.DB.image.tag}}
+        name: {{.Values.DB.name}}
+        env: {{ .Values.env | toYaml | nindent 8 }}
+        
+        ports:
+        - containerPort: {{.Values.DB.containerport}}
+        
+        volumeMounts:
+        - name: init-sql
+          mountPath: /docker-entrypoint-initdb.d
+          
+      volumes:
+        - name: init-sql
+          configMap:
+            name: toystore-init-sql

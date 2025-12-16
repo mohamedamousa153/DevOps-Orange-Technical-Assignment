@@ -1,0 +1,115 @@
+variables:
+  GIT_STRATEGY: "none"
+  GITHUB_REPO: "https://github.com/ahmedmisbah-ole/Devops-Orange"
+  CLONE_DIR: "cloned-repo"
+  IMAGE_NAME: "toy0store-app"
+  IMAGE_TAG: "latest"
+  
+stages:
+  - clone
+  - build
+  - docker-build-push
+
+clone-from-github:
+  stage: clone
+  image: alpine/git:latest
+  script:
+    - git --version
+    - echo "Starting clone from GitHub..."
+    - git clone --depth 1 "$GITHUB_REPO" "$CLONE_DIR"
+    - echo "Clone completed"
+    - du -sh "$CLONE_DIR" || true
+    - ls -la "$CLONE_DIR"
+    - echo "Add finalName to pom.xml (if missing)"
+
+    - sed -i '/<finalName>.*<\/finalName>/d' "$CLONE_DIR/Toy0Store/pom.xml"
+  
+    - |
+      awk '{
+        print
+        if (!done && /<build>/) {
+          match($0, /^[\t ]*/);
+          indent = substr($0, RSTART, RLENGTH) "\t";
+          print indent "<finalName>Toy0Store</finalName>"
+          done=1
+        }
+      }' "$CLONE_DIR/Toy0Store/pom.xml" > /tmp/pom.xml && mv /tmp/pom.xml "$CLONE_DIR/Toy0Store/pom.xml"
+    - echo "==== Preview of build section ===="
+    - awk '/<build>/{flag=1} flag{print} /<\/build>/{flag=0}' "$CLONE_DIR/Toy0Store/pom.xml"
+    - sed -i 's|^spring.datasource.url=.*|spring.datasource.url=${DB_URL}|' "$CLONE_DIR/Toy0Store/src/main/resources/application.properties"
+    - sed -i 's|^spring.datasource.username=.*|spring.datasource.username=${DB_USERNAME}|' "$CLONE_DIR/Toy0Store/src/main/resources/application.properties"
+    - sed -i 's|^spring.datasource.password=.*|spring.datasource.password=${DB_PASSWORD}|' "$CLONE_DIR/Toy0Store/src/main/resources/application.properties"
+    - echo "==== POM preview ====" && sed -n '1,120p' "$CLONE_DIR/Toy0Store/pom.xml" | sed -n '1,80p'
+    - echo "==== app props ====" && grep -E 'spring.datasource.(url|username|password)' "$CLONE_DIR/Toy0Store/src/main/resources/application.properties" || true
+  artifacts:
+    paths:
+      - cloned-repo/
+    expire_in: 1 week
+
+build-maven:
+  stage: build
+  image: maven:3.8.6-openjdk-8-slim
+  variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=/.m2/repository"
+  dependencies:
+    - clone-from-github
+  script:
+    - cd "$CLONE_DIR/Toy0Store"
+    - mvn -v
+    - mvn clean package -DskipTests
+    - ls -la target || true
+    - echo "Create Dockerfile"
+    - |
+      cat > Dockerfile << 'EOF'
+      FROM eclipse-temurin:8-jre-alpine-3.22
+      WORKDIR /app
+      COPY target/Toy0Store.jar .
+      CMD ["java", "-jar", "Toy0Store.jar"]
+      EOF
+    - echo "Dockerfile created:"
+    - cat Dockerfile
+  artifacts:
+    paths:
+      - cloned-repo/Toy0Store/target/Toy0Store.jar
+      - cloned-repo/Toy0Store/Dockerfile
+    expire_in: 1 week
+
+
+build-with-kaniko:
+  stage: docker-build-push
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  dependencies:
+    - build-maven
+  script:
+    - echo "Building Docker image with Kaniko..."
+    - cd "$CLONE_DIR/Toy0Store"
+    
+    
+    - mkdir -p /kaniko/.docker
+    - |
+      echo "{\"auths\":{
+        \"http://host.minikube.internal:5001\": {
+          \"auth\":\"$(echo -n '$username:$password' | base64 | tr -d '\n')\"
+        }
+      }}" > /kaniko/.docker/config.json
+
+    - echo "Docker config created:"
+    - cat /kaniko/.docker/config.json
+    
+
+    - |
+      /kaniko/executor \
+        --context "${CI_PROJECT_DIR}/$CLONE_DIR/Toy0Store" \
+        --dockerfile "${CI_PROJECT_DIR}/$CLONE_DIR/Toy0Store/Dockerfile" \
+        --destination "host.minikube.internal:5001/repository/docker-hosted/toy0store-app:latest" \
+        --destination "host.minikube.internal:5001/repository/docker-hosted/toy0store-app:${CI_COMMIT_SHORT_SHA}" \
+        --cache=true \
+        --cache-ttl=168h \
+        --insecure \
+        --insecure-pull \
+        --skip-tls-verify
+    
+  only:
+    - main

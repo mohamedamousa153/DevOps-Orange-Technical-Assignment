@@ -1,0 +1,36 @@
+---
+- name: Create Docker Repository in Nexus
+  hosts: localhost
+  connection: local
+  vars:
+    nexus_url: "http://127.0.0.1:37871"
+    nexus_admin_user: "admin"
+    nexus_admin_password: "123"
+    
+  tasks:
+    - name: Create Docker hosted repository
+      uri:
+        url: "{{ nexus_url }}/service/rest/v1/repositories/docker/hosted"
+        method: POST
+        user: "{{ nexus_admin_user }}"
+        password: "{{ nexus_admin_password }}"
+        force_basic_auth: yes
+        body_format: json
+        body:
+          name: "docker-hosted-adel"
+          online: true
+          storage:
+            blobStoreName: "default"
+            strictContentTypeValidation: true
+            writePolicy: "allow_once"
+          docker:
+            v1Enabled: false
+            httpPort: 5002
+            forceBasicAuth: true
+        status_code: 201
+      register: result
+      
+    - name: Print success message
+      debug:
+        msg: "Docker repository created successfully! Use: docker login 127.0.0.1:5001"
+      when: result.status == 201

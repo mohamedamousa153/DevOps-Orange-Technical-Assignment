@@ -1,0 +1,10 @@
+Manifest-Version: 1.0
+Implementation-Title: Toy0Store
+Implementation-Version: 1.0
+Built-By: yousef
+Implementation-Vendor-Id: springTask
+Build-Jdk: 1.8.0_171
+Implementation-URL: https://projects.spring.io/spring-boot/#/spring-bo
+ ot-starter-parent/Toy0Store
+Created-By: Maven Integration for Eclipse
+
